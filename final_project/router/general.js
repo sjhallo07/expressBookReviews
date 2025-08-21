@@ -44,116 +44,73 @@
 // getBooksList();
 const express = require('express');
 let books = require("./booksdb.js");
-let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
 const public_users = express.Router();
 
+// Tarea 1: Obtener la lista de libros disponibles
+public_users.get('/', function (req, res) {
+  return res.status(200).json(JSON.parse(JSON.stringify(books, null, 2)));
+});
 
-public_users.post("/register", (req,res) => {
+// Tarea 2: Obtener detalles del libro por ISBN
+public_users.get('/isbn/:isbn', function (req, res) {
+  const isbn = req.params.isbn;
+  const book = books[isbn];
+  if (book) {
+    return res.status(200).json(book);
+  } else {
+    return res.status(404).json({ message: "Libro no encontrado" });
+  }
+});
+
+// Tarea 3: Obtener detalles del libro por autor
+public_users.get('/author/:author', function (req, res) {
+  const author = req.params.author;
+  const booksByAuthor = Object.values(books).filter(book => book.author === author);
+  if (booksByAuthor.length > 0) {
+    return res.status(200).json(booksByAuthor);
+  } else {
+    return res.status(404).json({ message: "No se encontraron libros para ese autor" });
+  }
+});
+
+// Tarea 4: Obtener detalles del libro por título
+public_users.get('/title/:title', function (req, res) {
+  const title = req.params.title;
+  const booksByTitle = Object.values(books).filter(book => book.title === title);
+  if (booksByTitle.length > 0) {
+    return res.status(200).json(booksByTitle);
+  } else {
+    return res.status(404).json({ message: "No se encontraron libros con ese título" });
+  }
+});
+
+// Tarea 5: Obtener reseñas del libro por ISBN
+public_users.get('/review/:isbn', function (req, res) {
   const isbn = req.params.isbn;
   const book = books[isbn];
   if (book) {
     return res.status(200).json(book.reviews);
   } else {
-    return res.status(404).json({message: "Libro no encontrado para el ISBN proporcionado."});
+    return res.status(404).json({ message: "Libro no encontrado" });
   }
 });
 
-// Get the book list available in the shop
-public_users.get('/',function (req, res) {
-  // Async: obtener todos los libros
-  (async () => {
-    try {
-      const allBooks = await new Promise((resolve) => resolve(books));
-      return res.status(200).json(allBooks);
-    } catch (err) {
-      return res.status(500).json({ message: "Error al obtener los libros." });
-    }
-  })();
-});
+// Tarea 6: Registrar un nuevo usuario
+const isValid = (username) => {
+  return users.some(user => user.username === username);
+};
 
-// Get book details based on ISBN
-public_users.get('/isbn/:isbn',function (req, res) {
-  // Async: obtener libro por ISBN
-  (async () => {
-    try {
-      const isbn = req.params.isbn;
-      const book = await new Promise((resolve) => resolve(books[isbn]));
-      if (book) {
-        return res.status(200).json(book);
-      } else {
-        return res.status(404).json({message: "Libro no encontrado para el ISBN proporcionado."});
-      }
-    } catch (err) {
-      return res.status(500).json({ message: "Error al obtener el libro." });
-    }
-  })();
- });
-  
-// Get book details based on author
-public_users.get('/author/:author',function (req, res) {
-  // Async: obtener libros por autor
-  (async () => {
-    try {
-      const author = req.params.author;
-      const booksByAuthor = await new Promise((resolve) => {
-        resolve(
-          Object.entries(books)
-            .filter(([isbn, book]) => book.author.toLowerCase() === author.toLowerCase())
-            .map(([isbn, book]) => ({ isbn, ...book }))
-        );
-      });
-      if (booksByAuthor.length > 0) {
-        return res.status(200).json(booksByAuthor);
-      } else {
-        return res.status(404).json({message: "No se encontraron libros para el autor proporcionado."});
-      }
-    } catch (err) {
-      return res.status(500).json({ message: "Error al obtener los libros por autor." });
-    }
-  })();
-});
-
-// Get all books based on title
-public_users.get('/title/:title',function (req, res) {
-  // Async: obtener libros por título
-  (async () => {
-    try {
-      const title = req.params.title;
-      const booksByTitle = await new Promise((resolve) => {
-        resolve(
-          Object.entries(books)
-            .filter(([isbn, book]) => book.title.toLowerCase() === title.toLowerCase())
-            .map(([isbn, book]) => ({ isbn, ...book }))
-        );
-      });
-      if (booksByTitle.length > 0) {
-        return res.status(200).json(booksByTitle);
-      } else {
-        return res.status(404).json({message: "No se encontraron libros para el título proporcionado."});
-      }
-    } catch (err) {
-      return res.status(500).json({ message: "Error al obtener los libros por título." });
-    }
-  })();
-});
-
-//  Get book review
-public_users.get('/review/:isbn',function (req, res) {
-  // Async: obtener reseñas por ISBN
-  (async () => {
-    try {
-      const isbn = req.params.isbn;
-      const book = await new Promise((resolve) => resolve(books[isbn]));
-      if (book) {
-        return res.status(200).json(book.reviews);
-      } else {
-        return res.status(404).json({message: "Libro no encontrado para el ISBN proporcionado."});
-      }
-    } catch (err) {
-      return res.status(500).json({ message: "Error al obtener las reseñas." });
-    }
-  })();
+public_users.post('/register', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ message: "Nombre de usuario y contraseña son requeridos." });
+  }
+  if (isValid(username)) {
+    return res.status(409).json({ message: "El usuario ya existe." });
+  }
+  users.push({ username, password });
+  return res.status(201).json({ message: "Usuario registrado exitosamente." });
 });
 
 module.exports.general = public_users;
